@@ -33,7 +33,9 @@ ic.X_top = 0.01/0.263;    % Salt (HH) mass fraction in enriched crust [1]
 ic.X_con = 1e-4/0.263;    % Salt mass fraction in convecting shell [1]
 ic.Ttop = 100;            % Mean surface temperature [K]
 ic.Tbot = 262;            % Basal temperature [K]
-ic.seed = 2;              % seed for random perturbations
+ic.seed = 1;              % seed for random perturbations
+ic.corr_length = 5;       % correlation length of initial perturbations
+ic.sigma = ic.X_con*5e-5; % standard deviation of perturbation
 
 % Thermodynamic properties
 Phase.L  = 3.34e5;
