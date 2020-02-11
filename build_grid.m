@@ -1,4 +1,4 @@
-function [Grid] = build_grid(Grid) % repo
+function [Grid] = build_grid(Grid) % repo (MDOT)
 % Author: Marc Hesse
 % Date: 09/12/2014, 16 Mar 2018
 % Description:
@@ -34,6 +34,7 @@ function [Grid] = build_grid(Grid) % repo
 
 %% Set up catesian geometry
 if ~isfield(Grid,'geom'); Grid.geom = 'cartesian'; end
+if ~isfield(Grid,'periodic'); Grid.periodic = 'none'; end
 if ~isfield(Grid,'xmin'); Grid.xmin = 0;  end
 if ~isfield(Grid,'xmax'); Grid.xmax = 1; end
 if ~isfield(Grid,'Nx');   Grid.Nx   = 1; end
@@ -53,10 +54,17 @@ Grid.Lz = Grid.zmax-Grid.zmin;    % domain length in z
 Grid.dz = Grid.Lz/Grid.Nz;        % dz of the gridblocks
 
 %% Number for fluxes
-Grid.Nfx = (Grid.Nx+1)*Grid.Ny;
+if Grid.Nx > 1
+    Grid.Nfx = (Grid.Nx+1)*Grid.Ny;
+else
+    Grid.Nfx = 0;
+end
+
 Grid.Nfy = Grid.Nx*(Grid.Ny+1);
 if Grid.Ny == 1
     Grid.Nf = Grid.Nfx;
+elseif Grid.Nx == 1
+    Grid.Nf = Grid.Nfy;
 else
     Grid.Nf = Grid.Nfx + Grid.Nfy;
 end

@@ -1,6 +1,6 @@
-function [A] = flux_upwind(q,Grid) % repo
+function [A] = flux_upwind(q,Grid) % repo (MDOT)
 % author: Marc Hesse
-% date: 15 April 2015, 8 Nov 2017
+% date: 15 April 2015, 8 Nov 2017, 9 Feb 2020
 % Description:
 % This function computes the upwind flux matrix from the flux vector.
 %
@@ -24,28 +24,14 @@ Nf  = Grid.Nf;   % # faces
 
 if ((Nx>1) && (Ny==1)) || ((Nx==1) && (Ny>1)) % 1D
     %% One dimensinal
-    % too make this work for 1D in y-dir need to replace Nx with N!
     qn = min(q(1:N),0);
     qp = max(q(2:N+1),0);
     A = spdiags([qp,qn],[-1 0],Grid.N+1,Grid.N);
-elseif (Nx>1) && (Ny>1) % 2D
-%     %% Old direct implementation
-%     %% Two dimensional
-%     % x - fluxes
-%     qxn = min(q(1:Nfx-Ny),0); 
-%     qxp = max(q(Ny+1:Nfx),0);
-%     Ax = spdiags([qxp,qxn],[-Ny 0],Nfx,N);
-%     
-%     % y-fluxes
-%     QY = reshape(q(Nfx+1:end),Grid.Ny+1,Grid.Nx);
-%     qyn = min(reshape(QY(1:Grid.Ny,:),Grid.N,1),0);
-%     qyp = max(reshape(QY(2:Grid.Ny+1,:),Grid.N,1),0);
-%     row_p = (Grid.Ny+1)*repmat([0:Grid.Nx-1],Grid.Ny,1)+repmat([2:Grid.Ny+1]',1,Grid.Nx); 
-%     row_n = (Grid.Ny+1)*repmat([0:Grid.Nx-1],Grid.Ny,1)+repmat([1:Grid.Ny]',  1,Grid.Nx); 
-%     Ay = sparse([row_p(:);row_n(:)],[Grid.dof;Grid.dof],[qyp;qyn]);
-%     
-%     A = [Ax; Ay];
-    
+    if strcmp(Grid.periodic,'x-dir') || strcmp(Grid.periodic,'y-dir')
+        A(1,Grid.N)   = max(q(1)       ,0);
+        A(Grid.N+1,1) = min(q(Grid.N+1),0);
+    end
+elseif (Nx>1) && (Ny>1) % 2D    
 %     %% Readable implementation with kron
 %     % x-matrices
 %     Iy = speye(Ny);
@@ -73,13 +59,35 @@ elseif (Nx>1) && (Ny>1) % 2D
    
 
     %% Compact implementation with kron
-    % x-matrices
-    Axp = kron(spdiags(ones(Nx,1),-1,Nx+1,Nx),speye(Ny));   % 2D x-positive
-    Axn = kron(spdiags(ones(Nx,1),0,Nx+1,Nx),speye(Ny));    % 2D x-negative
-    
-    % y-matrices
-    Ayp = kron(speye(Nx),spdiags(ones(Ny,1),-1,Ny+1,Ny));   % 2D y-positive
-    Ayn = kron(speye(Nx),spdiags(ones(Ny,1),0,Ny+1,Ny));    % 2D y-negative
+    if strcmp(Grid.periodic,'none') 
+        % x-matrices
+        Axp = kron(spdiags(ones(Nx,1),-1,Nx+1,Nx),speye(Ny));   % 2D x-positive
+        Axn = kron(spdiags(ones(Nx,1),0,Nx+1,Nx),speye(Ny));    % 2D x-negative
+        
+        % y-matrices
+        Ayp = kron(speye(Nx),spdiags(ones(Ny,1),-1,Ny+1,Ny));   % 2D y-positive
+        Ayn = kron(speye(Nx),spdiags(ones(Ny,1),0,Ny+1,Ny));    % 2D y-negative
+    else % Periodic bnd's 
+        % 1D matrices
+        Axp1 = spdiags(ones(Nx,1),-1,Nx+1,Nx);  % 1D x-poititve
+        Axn1 = spdiags(ones(Nx,1),0,Nx+1,Nx);   % 1D x-negative
+        Ayp1 = spdiags(ones(Ny,1),-1,Ny+1,Ny);  % 1D y-positive
+        Ayn1 = spdiags(ones(Ny,1),0,Ny+1,Ny);   % 1D y-negative
+        % Periodic BC's
+        if strcmp(Grid.periodic,'x-dir') || strcmp(Grid.periodic,'xy-dir')
+            Axp1(1,Grid.Nx)   = 1;
+            Axn1(Grid.Nx+1,1) = 1;
+        end
+        if strcmp(Grid.periodic,'y-dir') || strcmp(Grid.periodic,'xy-dir')
+            Ayp1(1,Grid.Ny)   = 1;
+            Ayn1(Grid.Ny+1,1) = 1;
+        end
+        % 2D matrices
+        Axp = kron(Axp1,speye(Ny));                 % 2D x-positive
+        Axn = kron(Axn1,speye(Ny));                 % 2D x-negative
+        Ayp = kron(speye(Nx),Ayp1);                 % 2D y-positive
+        Ayn = kron(speye(Nx),Ayn1);                 % 2D y-negative
+    end
     
     
     A = spdiags(max(q,0),0,Nf,Nf)*[Axp; Ayp] + spdiags(min(q,0),0,Nf,Nf)*[Axn; Ayn];
