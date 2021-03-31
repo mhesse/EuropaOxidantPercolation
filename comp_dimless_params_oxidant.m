@@ -1,4 +1,4 @@
-function [Scales,Param,ConstFuns] = comp_dimless_params_oxidant(Scales,Param)
+function [Scales,Param,ic,ConstFuns] = comp_dimless_params_oxidant(Scales,Param,ic)
 % author: Marc Hesse
 % date: 26 Mar 2019
 % Description:
@@ -65,6 +65,7 @@ Param.non_dim.Da = 0;
 Param.non_dim.H  = Param.dim.H/Scales.delta_c;
 Param.non_dim.L  = Param.dim.L/Scales.delta_c;
 Param.non_dim.D  = Param.dim.D/Scales.delta_c;
+Param.non_dim.Dhom  = Param.dim.Dhom/Scales.delta_c;
 if isfield(Param.dim,'melt')
     if isfield(Param.dim.melt,'thick')
         Param.non_dim.melt.thick = Param.dim.melt.thick/Scales.delta_c;
@@ -83,3 +84,15 @@ Param.dim.Tm = Tm;         % melting point of water [K]
 Param.dim.A = A;
 Param.dim.Drho = Drho;     % density difference between ice and brine [kg/m3]
 Param.dim.g = g;           % Europa's surface gravity [m/s^2]
+
+%% Initial consition
+ic.z_sal  = Param.dim.H-ic.d_sal;  % Base of the enriched crust [m]
+ic.z_oxy = Param.dim.H-ic.d_oxy;   % Base of oxidant enriched layer [m]
+ic.z_per = ic.z_sal-ic.d_per;      % Base of perturbed layer [m]
+ic.dD_sal = ic.d_sal/Scales.delta_c;
+ic.dD_oxy = ic.d_oxy/Scales.delta_c;
+ic.zD_sal = ic.z_sal/Scales.delta_c;
+ic.zD_oxy = ic.z_oxy/Scales.delta_c;
+ic.zD_per = ic.z_per/Scales.delta_c;
+
+ic.zD_tbl = ic.z_tbl/Scales.delta_c; % depth of the thermal boundary layer
