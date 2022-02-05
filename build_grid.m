@@ -53,6 +53,9 @@ if ~isfield(Grid,'Nz');   Grid.Nz   = 1; end
 Grid.Lz = Grid.zmax-Grid.zmin;    % domain length in z
 Grid.dz = Grid.Lz/Grid.Nz;        % dz of the gridblocks
 
+%% Check input paramters
+if Grid.xmin > Grid.xmax; error('xmin > xmax.'); end
+
 %% Number for fluxes
 if Grid.Nx > 1
     Grid.Nfx = (Grid.Nx+1)*Grid.Ny;
@@ -69,6 +72,7 @@ else
     Grid.Nf = Grid.Nfx + Grid.Nfy;
 end
 
+Grid.Nfz = [];
 
 % x, y, z coords of the 12 corners of the domain
 Grid.xdom = [Grid.xmin Grid.xmin Grid.xmin Grid.xmin Grid.xmax Grid.xmax Grid.xmax Grid.xmin Grid.xmin Grid.xmin Grid.xmax Grid.xmin; ...
@@ -140,7 +144,29 @@ switch Grid.geom
         if length(x_faces(:)) ~= Grid.Nfx; error('Number of x-face areas inconsistent.'); end
         if length(y_faces(:)) ~= Grid.Nfy; error('Number of y-face areas inconsistent.'); end
         if length(Grid.V) ~= Grid.N; error('Number of cell volumes inconsistent.'); end
-
+    case 'spherical_shell'
+        % assumes x = theta = co-lattitude
+        if ~isfield(Grid,'R_shell')
+            fprintf('Grid.R_shell not initialized. Radius of spherical shell initialized to unity.\n ')
+            Grid.R_shell = 1;  
+        end
+        Acap = 2*pi*Grid.R_shell^2*(1-cos(Grid.xf)); % areas of the sph. caps corresponding to the cell faces
+        Aseg = diff(Acap); % areas of the sph. segments of the cells
+        Circ = 2*pi*Grid.R_shell*sin(Grid.xf); % circumference of the small circles corresponding to cell faces
+        Grid.A = Circ*Grid.dz; % cross-sectional area of the cell faces
+        Grid.V = Aseg*Grid.dz; % volume of the cells
+    case 'spherical_shell_theta_phi'
+%         fprintf('spherical_shell_theta_phi:\nNeed to complete volume and area elements\n')
+        if ~isfield(Grid,'R_shell')
+            fprintf('Grid.R_shell not initialized. Radius of spherical shell initialized to unity.\n ')
+            Grid.R_shell = 1;  
+        end
+        Acap = 2*pi*Grid.R_shell^2*(1-cos(Grid.xf)); % areas of the sph. caps corresponding to the cell faces
+        Aseg = diff(Acap); % areas of the sph. segments of the cells
+        Aseg_sec = Aseg/Grid.Ny;
+        A = repmat(Aseg_sec',Grid.Ny,1);
+        Grid.A = A(:);
+        Grid.V = Grid.A*Grid.dz;
     otherwise
         error('Unknown grid geometry.')
 end
