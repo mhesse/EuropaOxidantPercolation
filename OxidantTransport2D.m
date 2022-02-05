@@ -1,4 +1,4 @@
-% OxidantTransport.m
+% OxidantTransport2D.m
 % author: Marc Hesse, Jake Jordan
 % date: 23 Mar 2020
 % Description:
@@ -65,17 +65,16 @@ TD_top = TD_fun(ic.Ttop);
 TD_bot = TD_fun(ic.Tbot);
 
 %% Define Grid and build operators
-% Grid.periodic = 'x-dir';
-Grid.geom = 'cylindrical_rz';
+Grid.geom = 'cylindrical_rz'; % Cylindrical coordinates
 Grid.xmin = 0;  Grid.xmax = Param.non_dim.L; Grid.Nx = 60; %Param.refine*ceil(Param.non_dim.L);
 Grid.ymin = -Param.non_dim.D;  Grid.ymax = Param.non_dim.H; Grid.Ny = 600; %Param.refine*ceil(Param.non_dim.H+Param.non_dim.D);
 Nt = Param.non_dim.tmax*2e3; Param.num.Nt = Nt;
-Param.plot_interval = 100;
+Param.plot_interval = 100; % Controls plotting and saving of solution
 
 theta = 1; Param.num.theta = theta;% forward  Euler (explicit) - Note: going implicit screws up conservation
 
 Grid    = build_grid(Grid);
-[D,G,I] = build_ops(Grid);
+[D,G,C,I,M] = build_ops(Grid);
 [XDc,ZDc] = meshgrid(Grid.xc,Grid.yc);
 [XDx,ZDx] = meshgrid(Grid.xf,Grid.yc);
 [XDz,ZDz] = meshgrid(Grid.xc,Grid.yf);
@@ -153,11 +152,9 @@ time = zeros(Nt+1,1);
 Pe = Param.non_dim.Pe;
 dtD_ref = dtD; 
 i = 0;
-% h3 = figure;
-% h1 = figure('units','normalized','outerposition',[.5 .5 .25 .25]);
-% semilogy([0,Param.non_dim.tmax],dtD*[1 1],'b-'), hold on
-% xlabel 'tD', ylabel 'dtD'
 
+%% Time-stepping loop
+fprintf('Plotting every %d timestep.\n',Param.plot_interval)
 while tD < Param.non_dim.tmax
     i = i+1;
     %% find time step
@@ -191,18 +188,9 @@ while tD < Param.non_dim.tmax
             error('Solidification boundary is not straight.\n')
         end
         G_oxy = G; G_oxy(dof_solid_f_bnd,:) = 0;
-%         figure(h3), clf
-%         plot(XDc(dof_solid),ZDc(dof_solid),'ro'), hold on
-%         plot(X_f_bnd,Y_f_bnd,'b-','linewidth',1)
-%         plot(XDc(dof_bnd_out),ZDc(dof_bnd_out),'go')
-%         plot(XDc(dof_bnd_in),ZDc(dof_bnd_in),'g+')
     else
         G_oxy = G;
-    end
-    
-%     top = find(reg,1,'last'); % top of melting region
-%     CD_tracer(top) = CD_tracer(top)+sum(CD_tracer(Phi(:,3)==0));
-%     CD_tracer(Phi(:,3)==0) = 0;                   
+    end       
                        
     % Compute total mass of fluid and tracer
     phiD = Phi(:,3)/Scales.phi_c;
@@ -217,15 +205,13 @@ while tD < Param.non_dim.tmax
     [uD,vD]    = solve_Poisson(D,G,I,phiD,Param.exp.m,pD,Grid,B_u,N_u,fn_u,Param_u);
     
     %% Transport calculations
-    % Update porosity
+    % Update total salt composition and enthalpy
+    % Upwind matrices for fluid and solid
     Aq = flux_upwind(qD,Grid);
     Av = flux_upwind(vD,Grid);
-%     Aq_tracer = build_adv_op(qD,CD_tracer,dtD,G,Grid,Param_c,Param.limiter);
-%     Av_tracer = build_adv_op(vD,CD_tracer,dtD,G,Grid,Param_c,Param.limiter);
-%     
+    % Upwind matrices for effective velocities
     Ae_CD = comp_effective_flux(phiD,Aq,Av,dist_CD,Grid,Scales);
     Ae_HD = comp_effective_flux(phiD,Aq,Av,dist_HD,Grid,Scales);
-%     Ae_cD = comp_effective_flux(phiD,Aq_tracer,Av_tracer,dist_tracer,Grid,Scales);
     Ae_cD = comp_effective_flux(phiD,Aq,Av,dist_tracer,Grid,Scales);
     ve_cD = Ae_cD*ones(Grid.N,1);
     Ae_cD_lim = build_eff_adv_op(Ae_cD,ve_cD,CD_tracer,dtD,G,Grid,Param_c,Param.limiter);
@@ -250,9 +236,6 @@ while tD < Param.non_dim.tmax
         figure(h0)
         plot_solution_CH_2D(Grid,phiD,cD_tracer,CD,HD,TD,CD_tracer,hD,uD,qD,vD,pD,ZDc,XDc,Scales,Phase,z_front)
         save(['solution_',num2str(k),'.mat'],'tD','i','k','phiD','CD','HD','hD','uD','qD','vD','pD','CD_tracer','cD_tracer','TD','Phi')
-        
-%         figure(h1)
-%             plot(tD,dtDmax.q,'r.',tD,dtDmax.v,'b.',tD,dtDmax.ve,'g.',tD,dtDmax.tot,'ko'), hold on
         dtDmax;
         drawnow
     end

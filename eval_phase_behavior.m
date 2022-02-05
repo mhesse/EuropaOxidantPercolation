@@ -16,10 +16,10 @@ function [TD,Phi,field] = eval_phase_behavior(HD,CD,rho,cp,hD,Phase) % repo
 % Description:
 % This function computes the phase split for a simple binary eutectic with
 % a linear liquidus given the dimensionless total enthalpy, HD, and the
-% total composition, CD.
+% dimensionless total composition, CD.
 
 
-% Separate input into 5 possible fieldions: 
+% Separate input into 5 possible fields: 
 % 1) Pure solid 1:   solid 1
 % 2) Sub-solidus:    solid 1 + solid 2
 % 3) Eutectic:       solid 1 + solid 2 + brine
@@ -40,7 +40,7 @@ CDb = Phase.invHC.CDb;
 CD3l = Phase.invHC.CD3l;
 Ste = Phase.Ste;
 
-% Identify different fieldions of HX phase diagram
+% Identify different fields of HD-CD phase diagram
 field = zeros(N,1);
 field(HD<=1 & CD==0)            = 1;
 field(HD<=0 & CD>0)             = 2;
@@ -52,7 +52,7 @@ field(HD>HDl(CD) & CD <= CD3l)               = 5;
 Phi = zeros(N,3); % [ice,sal,bri]
 TD   = zeros(N,1);
 
-%% Regime 1 - Single-phase sub-solius: solid 1 (ice)
+%% Regime 1 - Single-phase sub-solidus: solid 1 (ice)
 % Mass fractions
 % Don't need to compute them.
 
@@ -66,7 +66,7 @@ TD(field == 1) = HD(field==1);
 
 % Volume fractions (no brine)
 Phi(field==2,2) = CD(field==2)/rho.si; % sal
-Phi(field==2,1) = 1 - Phi(field==2,2);                  % ice
+Phi(field==2,1) = 1 - Phi(field==2,2); % ice
 
 % Temperature
 TD(field == 2) = HD(field==2)./(Phi(field==2,1) + Phi(field==2,2)*rho.si*cp.si); 
@@ -81,16 +81,18 @@ TD(field == 3) = 0; % Temperature is fixed at the eutectic TDe = 0
 
 
 %% Regime 4 - Super-eutectic: solid 1 + brine (ice + brine)
-% Note 1: The case X=0 (pure ice) is treated separately.
-% Note 2: For X > 0, this field requires the solution of a quadratic 
+% Note 1: The case CD=0 (pure ice) is treated separately.
+% Note 2: For CD > 0, this field requires the solution of a quadratic 
 % equation to determine the temperature. The solution to this quadratic 
-% is in Phase.field3.T1, which comes from setup_phase_behavior.
+% is in Phase.invHC.field4.T2, which comes from setup_phase_behavior.
 
 % Temperature
-if  min(Phase.invHC.field4.disc(CD(field==4 & CD(:)~=0),HD(field==4 & CD(:)~=0)) < 0) error('Negative discriminant!'); end
+if  min(Phase.invHC.field4.disc(CD(field==4 & CD(:)~=0),HD(field==4 & CD(:)~=0)) < 0) 
+    error('Negative discriminant!'); % check quadratic that needs to be solved
+end
 
 TD(field == 4 & CD(:)~=0) = Phase.invHC.field4.T2(CD(field==4 & CD(:)~=0),HD(field==4 & CD(:)~=0));
-TD(field == 4 & CD(:)==0) = 1; % single phase limit of fieldion 4
+TD(field == 4 & CD(:)==0) = 1; % single phase limit of field 4
 
 % Volume fractions (no salt)
 Phi(field==4 & CD(:)~=0,3) =  CD(field == 4 & CD(:)~=0)./(rho.bi*Xe*(1-TD(field == 4 & CD(:)~=0))); % brine
@@ -107,7 +109,8 @@ Phi(field==5,3) = 1;
 %% Unidentified 
 N_unid = sum(field == 0);
 if N_unid > 0
-    error('%d unidentified points in HC-space!\n',N_unid)
+%     error('%d unidentified points in HC-space!\n',N_unid)
+    fprintf('%d unidentified points in HC-space!\n',N_unid)
     TD(field == 0) = nan;
     Phi(field == 0,:) = nan;
 end

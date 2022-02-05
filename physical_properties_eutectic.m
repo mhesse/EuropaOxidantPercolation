@@ -3,7 +3,7 @@ function [rho,cp,kappa,hD,HD,Phase] = physical_properties_eutectic(Phase,Scales)
 % date: 1,9 May 2019
 
 % DESCRIPTION:
-% Defines the physical properties of the phases in for the
+% Defines the physical properties of the phases 
 
 % INPUT:
 % Te = eutectic temperature [K]
@@ -44,14 +44,16 @@ DT = T1-Te; Phase.DT = DT;
 
 %% Densities of the phases 
 % % dimensional [kg/m^3]
-% rho.ice = 917;  % ice
-% rho.sal = 1466; % Mirabillite
-% rho.bri = 1010; % brine
+rho.ice = 917;  % ice
+rho.sal = 1466; % Mirabillite
+rho.bri = 1010; % brine
 % Busynesk approximation!
-rho.ice = 1e3;  % ice
-rho.sal = 1e3; % Mirabillite
-rho.bri = 1e3; % brine
+% rho.ice = 1e3;  % ice
+% rho.sal = 1e3; % Mirabillite
+% rho.bri = 1e3; % brine
+if rho.sal == rho.ice && rho.ice == rho.bri
 disp('Densities adjusted for Boussinesq approximation!')
+end
 % dimensionless density ratios [1]
 rho.bi = rho.bri/rho.ice;
 rho.si = rho.sal/rho.ice;
